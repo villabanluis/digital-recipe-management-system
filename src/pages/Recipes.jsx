@@ -79,11 +79,17 @@ function Recipes() {
       return;
     }
 
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     const { error } = await supabase
       .from("cooking_queue")
       .insert([
         {
           recipe_name: recipe.recipe_name,
+          recipe_id: recipe.id,
+          user_id: user.id,
         },
       ]);
 

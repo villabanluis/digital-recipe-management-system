@@ -12,9 +12,14 @@ function RecentlyViewed() {
   }, []);
 
   const fetchRecentlyViewed = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     const { data, error } = await supabase
       .from("recently_viewed")
       .select("*")
+      .eq("user_id", user.id)
       .order("viewed_at", { ascending: false });
 
     if (error) {

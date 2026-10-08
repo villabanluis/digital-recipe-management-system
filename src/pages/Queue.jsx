@@ -12,9 +12,14 @@ function Queue() {
   }, []);
 
   const fetchQueue = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
     const { data, error } = await supabase
       .from("cooking_queue")
       .select("*")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: true });
 
     if (error) {
