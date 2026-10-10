@@ -11,10 +11,17 @@ function RecentlyViewed() {
     fetchRecentlyViewed();
   }, []);
 
+  
   const fetchRecentlyViewed = async () => {
     const {
       data: { user },
+      error: userError,
     } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      setRecipes([]);
+      return;
+    }
 
     const { data, error } = await supabase
       .from("recently_viewed")
@@ -23,12 +30,13 @@ function RecentlyViewed() {
       .order("viewed_at", { ascending: false });
 
     if (error) {
-      console.log(error);
+      console.error("Recently viewed fetch error:", error);
       return;
     }
 
-    setRecipes(data);
+    setRecipes(data || []);
   };
+
 
   return (
     <Layout>

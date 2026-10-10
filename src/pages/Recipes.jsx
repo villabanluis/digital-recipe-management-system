@@ -67,31 +67,42 @@ function Recipes() {
     fetchRecipes();
   };
 
+  
   const addToQueue = async (recipe) => {
-    const { data: existingRecipe } = await supabase
-      .from("cooking_queue")
-      .select("*")
-      .eq("recipe_name", recipe.recipe_name)
-      .maybeSingle();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-    if (existingRecipe) {
-      alert("This recipe is already in the cooking queue.");
+    if (userError || !user) {
+      alert("Please log in first.");
       return;
     }
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const { data: existingRecipe, error: checkError } = await supabase
+      .from("cooking_queue")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("recipe_id", recipe.id)
+      .maybeSingle();
+
+    if (checkError) {
+      alert(checkError.message);
+      return;
+    }
+
+    if (existingRecipe) {
+      alert("This recipe is already in your cooking queue.");
+      return;
+    }
 
     const { error } = await supabase
       .from("cooking_queue")
-      .insert([
-        {
-          recipe_name: recipe.recipe_name,
-          recipe_id: recipe.id,
-          user_id: user.id,
-        },
-      ]);
+      .insert({
+        user_id: user.id,
+        recipe_id: recipe.id,
+        recipe_name: recipe.recipe_name,
+      });
 
     if (error) {
       alert(error.message);
@@ -100,6 +111,7 @@ function Recipes() {
 
     alert("Recipe added to queue.");
   };
+
 
   return (
     <Layout>

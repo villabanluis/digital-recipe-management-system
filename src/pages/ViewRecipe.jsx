@@ -1,21 +1,31 @@
+
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { supabase } from "../services/supabase";
 import Layout from "../components/Layout";
-import { Link } from "react-router-dom";
 
 function ViewRecipe() {
   const { id } = useParams();
   const navigate = useNavigate();
 
   const [recipe, setRecipe] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     fetchRecipe();
-    addToRecentlyViewed();
-  }, []);
+  }, [id]);
 
   const fetchRecipe = async () => {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      navigate("/");
+      return;
+    }
+
     const { data, error } = await supabase
       .from("recipes")
       .select("*")
@@ -23,36 +33,49 @@ function ViewRecipe() {
       .single();
 
     if (error) {
-      console.log(error);
+      console.error("Error fetching recipe:", error);
+      setErrorMessage("Unable to load this recipe.");
       return;
     }
 
     setRecipe(data);
-  };
 
-  const addToRecentlyViewed = async () => {
-    const { data } = await supabase.auth.getUser();
-
-    if (!data.user) return;
-
-    await supabase
+    // Save recently viewed only after the recipe has loaded.
+    const { error: historyError } = await supabase
       .from("recently_viewed")
-      .insert([
-        {
-          user_id: data.user.id,
-          recipe_id: id,
-        },
-      ]);
+      .insert({
+        user_id: user.id,
+        recipe_id: data.id,
+        recipe_name: data.recipe_name,
+      });
+
+    if (historyError) {
+      console.error("Error saving recently viewed recipe:", historyError);
+    }
   };
+
+  if (errorMessage) {
+    return (
+      <Layout>
+        <p>{errorMessage}</p>
+        <button onClick={() => navigate("/recipes")}>
+          Back to Recipes
+        </button>
+      </Layout>
+    );
+  }
 
   if (!recipe) {
-    return <p>Loading...</p>;
+    return (
+      <Layout>
+        <p>Loading recipe...</p>
+      </Layout>
+    );
   }
 
   return (
     <Layout>
       <div className="recipe-view-card">
-
         <div className="card-actions">
           <button onClick={() => navigate(-1)}>
             Back
@@ -79,10 +102,9 @@ function ViewRecipe() {
 
         <h3>Instructions</h3>
         <p>{recipe.instructions}</p>
-
       </div>
-  </Layout>
-);
+    </Layout>
+  );
 }
 
 export default ViewRecipe;
