@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../services/supabase";
@@ -7,51 +8,60 @@ function Recipes() {
   const [recipes, setRecipes] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchRecipes();
   }, []);
-  const fetchRecipes = async () => {
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
 
-    const { data: profile, error: profileError } = await supabase
+  const fetchRecipes = async () => {
+    setLoading(true);
+
+    try {
+      const {
+        data: { user },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !user) {
+        setRecipes([]);
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", user.id)
         .single();
 
-    if (profileError) {
-        console.log(profileError);
-    return;
-    }
+      if (profileError) throw profileError;
 
-    let query = supabase
+      let query = supabase
         .from("recipes")
         .select("*")
         .order("id", { ascending: false });
 
-    if (profile.role !== "admin") {
+      if (profile?.role !== "admin") {
         query = query.eq("user_id", user.id);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      setRecipes(data || []);
+    } catch (error) {
+      console.error("Error fetching recipes:", error);
+      alert("Could not load recipes: " + error.message);
+    } finally {
+      setLoading(false);
     }
-
-    const { data, error } = await query;
-
-    if (error) {
-        console.log(error);
-    return;
-    }
-
-    setRecipes(data);
-    };
+  };
 
   const deleteRecipe = async (id) => {
-    const confirmDelete = window.confirm(
-      "Are you sure you want to delete this recipe?"
-    );
-
-    if (!confirmDelete) return;
+    if (!window.confirm("Are you sure you want to delete this recipe?")) {
+      return;
+    }
 
     const { error } = await supabase
       .from("recipes")
@@ -59,15 +69,13 @@ function Recipes() {
       .eq("id", id);
 
     if (error) {
-      alert(error.message);
+      alert("Could not delete recipe: " + error.message);
       return;
     }
 
-    alert("Recipe deleted successfully.");
-    fetchRecipes();
+    setRecipes((previous) => previous.filter((recipe) => recipe.id !== id));
   };
 
-  
   const addToQueue = async (recipe) => {
     const {
       data: { user },
@@ -96,13 +104,11 @@ function Recipes() {
       return;
     }
 
-    const { error } = await supabase
-      .from("cooking_queue")
-      .insert({
-        user_id: user.id,
-        recipe_id: recipe.id,
-        recipe_name: recipe.recipe_name,
-      });
+    const { error } = await supabase.from("cooking_queue").insert({
+      user_id: user.id,
+      recipe_id: recipe.id,
+      recipe_name: recipe.recipe_name || "Untitled Recipe",
+    });
 
     if (error) {
       alert(error.message);
@@ -112,98 +118,79 @@ function Recipes() {
     alert("Recipe added to queue.");
   };
 
+  const filteredRecipes = recipes.filter((recipe) => {
+    const name = (recipe.recipe_name || "").toLowerCase();
+    const category = (recipe.category || "").toLowerCase();
+    const searchText = search.trim().toLowerCase();
+
+    const matchesSearch =
+      name.includes(searchText) || category.includes(searchText);
+
+    const matchesCategory =
+      !selectedCategory || recipe.category === selectedCategory;
+
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <Layout>
+          
+    <div className="user-table-container">
+      <table className="user-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Recipe Name</th>
+            <th>Category</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filteredRecipes.map((recipe, index) => (
+            <tr key={recipe.id}>
+              <td>{index + 1}</td>
+              <td>{recipe.recipe_name || "Untitled Recipe"}</td>
+              <td>{recipe.category || "Uncategorized"}</td>
+              <td>
+                <div className="recipe-table-actions">
 
-      <h1>Recipes</h1>
+                  <Link
+                    to={`/recipe/${recipe.id}`}
+                    className="recipe-action-button"
+                  >
+                    View
+                  </Link>
+                  
+                  <Link
+                    to={`/edit-recipe/${recipe.id}`}
+                    className="recipe-action-button"
+                  >
+                    Edit
+                  </Link>
 
-      <Link to="/add-recipe">
-        <button>Add Recipe</button>
-      </Link>
+                  <button
+                    type="button"
+                    className="recipe-action-button"
+                    onClick={() => addToQueue(recipe)}
+                  >
+                    Queue
+                  </button>
 
-        <div className="filter-bar">
-
-          <input
-            type="text"
-            className="search-input"
-            placeholder="Search recipes..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-
-          <select
-            className="category-select"
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-          >
-            <option value="">All Categories</option>
-            <option value="Filipino">Filipino</option>
-            <option value="Dessert">Dessert</option>
-            <option value="Breakfast">Breakfast</option>
-            <option value="Lunch">Lunch</option>
-            <option value="Dinner">Dinner</option>
-          </select>
-
-        </div>
-
-
-      {recipes.length === 0 ? (
-        <p>No recipes found.</p>
-      ) : (
-        <div className="recipe-grid">
-          {recipes
-            .filter((recipe) => {
-              const matchesSearch =
-                recipe.recipe_name
-                  .toLowerCase()
-                  .includes(search.toLowerCase()) ||
-                recipe.category
-                  .toLowerCase()
-                  .includes(search.toLowerCase());
-
-              const matchesCategory =
-                selectedCategory === "" ||
-                recipe.category === selectedCategory;
-
-            return matchesSearch && matchesCategory;
-          })
-          .map((recipe) => (
-            <div key={recipe.id} className="card">
-
-              <h3>{recipe.recipe_name}</h3>
-
-              <p>
-                <strong>Category:</strong> {recipe.category}
-              </p>
-
-              <div className="card-actions">
-                <Link to={`/recipe/${recipe.id}`}>
-                  <button>View</button>
-                </Link>
-
-                <Link to={`/edit-recipe/${recipe.id}`}>
-                  <button>Edit</button>
-                </Link>
-
-                <button onClick={() => addToQueue(recipe)}>
-                  Queue
-                </button>
-
-                <button
-                  className="delete-btn"
-                  onClick={() => deleteRecipe(recipe.id)}
-                >
+                  <button
+                    type="button"
+                    className="recipe-action-button recipe-delete-button"
+                    onClick={() => deleteRecipe(recipe.id)}
+                  >
                     Delete
-                </button>
-
-              </div>
-            </div>
+                  </button>
+                </div>
+              </td>
+            </tr>
           ))}
-        </div>
-      )}
+        </tbody>
+      </table>
+    </div>
     </Layout>
   );
 }
-
 export default Recipes;

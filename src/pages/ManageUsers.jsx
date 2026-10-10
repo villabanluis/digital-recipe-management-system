@@ -7,46 +7,58 @@ function ManageUsers() {
   const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState(null);
 
   useEffect(() => {
+    let active = true;
+
+    const checkAdmin = async () => {
+      try {
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError || !user) {
+          navigate("/", { replace: true });
+          return;
+        }
+
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
+        if (profileError || !profile || profile.role !== "admin") {
+          alert("Access denied. Admins only.");
+          navigate("/dashboard", { replace: true });
+          return;
+        }
+
+        if (active) {
+          await fetchUsers(active);
+        }
+      } catch (error) {
+        console.error("Error checking admin access:", error);
+        alert("Could not verify admin access.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
     checkAdmin();
-  }, []);
 
-  const checkAdmin = async () => {
-    try {
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
 
-      if (authError || !user) {
-        navigate("/", { replace: true });
-        return;
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      if (profileError || !profile || profile.role !== "admin") {
-        alert("Access denied. Admins only.");
-        navigate("/dashboard", { replace: true });
-        return;
-      }
-
-      await fetchUsers();
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchUsers = async () => {
+  const fetchUsers = async (active = true) => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("*")
-      .order("full_name");
+      .select("id, full_name, email, role")
+      .order("full_name", { ascending: true });
 
     if (error) {
       console.error("Error fetching users:", error);
@@ -54,11 +66,11 @@ function ManageUsers() {
       return;
     }
 
-    setUsers(data || []);
+    if (active) setUsers(data || []);
   };
 
-  const changeRole = async (id, newRole) => {
-    if (!["user", "admin"].includes(newRole)) return;
+  const changeRole = async (id, currentRole) => {
+    const newRole = currentRole === "admin" ? "user" : "admin";
 
     const confirmed = window.confirm(
       `Are you sure you want to change this user's role to ${newRole}?`
@@ -66,18 +78,24 @@ function ManageUsers() {
 
     if (!confirmed) return;
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({ role: newRole })
-      .eq("id", id);
+    setUpdatingId(id);
 
-    if (error) {
-      alert("Could not change role: " + error.message);
-      return;
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ role: newRole })
+        .eq("id", id);
+
+      if (error) {
+        alert("Could not change role: " + error.message);
+        return;
+      }
+
+      alert("User role updated successfully.");
+      await fetchUsers();
+    } finally {
+      setUpdatingId(null);
     }
-
-    alert("Role updated.");
-    await fetchUsers();
   };
 
   if (loading) {
@@ -90,47 +108,81 @@ function ManageUsers() {
 
   return (
     <Layout>
-      <h1>Manage Users</h1>
+      <div className="user-management-page">
+        <div className="user-management-heading">
+          <div>
+            <h1>User Management</h1>
+            <p>View registered accounts and manage their roles.</p>
+          </div>
 
-      {users.length === 0 ? (
-        <p>No users found, or the users could not be loaded.</p>
-      ) : (
-        <div className="recipe-grid">
-          {users.map((user) => (
-            <div key={user.id} className="card">
-              <h3>{user.full_name || "Unnamed User"}</h3>
-
-              <p>
-                <strong>Email:</strong> {user.email}
-              </p>
-
-              <p>
-                <strong>Role:</strong> {user.role}
-              </p>
-
-              {user.id !== undefined && (
-                user.role === "user" ? (
-                  <button
-                    className="btn-primary"
-                    onClick={() => changeRole(user.id, "admin")}
-                  >
-                    Make Admin
-                  </button>
-                ) : (
-                  <button
-                    className="btn-danger"
-                    onClick={() => changeRole(user.id, "user")}
-                  >
-                    Make User
-                  </button>
-                )
-              )}
-            </div>
-          ))}
+          <div className="user-count">
+            <span>Total Users</span>
+            <strong>{users.length}</strong>
+          </div>
         </div>
-      )}
+
+        <div className="user-table-container">
+          {users.length === 0 ? (
+            <p className="user-empty-state">No users found.</p>
+          ) : (
+            <table className="user-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {users.map((user, index) => (
+                  <tr key={user.id}>
+                    <td className="user-id">{index + 1}</td>
+
+                    <td>{user.full_name || "Unnamed User"}</td>
+
+                    <td>{user.email || "No email"}</td>
+
+                    <td>
+                      <span
+                        className={`role-badge ${
+                          user.role === "admin" ? "role-admin" : "role-user"
+                        }`}
+                      >
+                        {user.role || "user"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <button
+                        type="button"
+                        className={
+                          user.role === "admin"
+                            ? "user-action-button make-user-button"
+                            : "user-action-button make-admin-button"
+                        }
+                        onClick={() => changeRole(user.id, user.role)}
+                        disabled={updatingId !== null}
+                      >
+                        {updatingId === user.id
+                          ? "Updating..."
+                          : user.role === "admin"
+                            ? "Make User"
+                            : "Make Admin"}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
     </Layout>
   );
 }
 
 export default ManageUsers;
+
