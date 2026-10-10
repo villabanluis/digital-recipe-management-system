@@ -130,7 +130,6 @@ function Queue() {
         <div className="page-empty-state">Loading cooking queue...</div>
       ) : queue.length === 0 ? (
         <div className="page-empty-state">
-          <div className="empty-state-icon">🍳</div>
           <h3>Your queue is empty</h3>
           <p>Add recipes from the Recipes page to plan your next meal.</p>
           <Link to="/recipes" className="page-primary-link">
