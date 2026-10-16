@@ -101,19 +101,27 @@ function Dashboard() {
       if (queueError) console.error("Queue count error:", queueError);
       setQueueCount(queue || 0);
 
-      // Recently viewed count
+      // Recently viewed count — count unique recipes
       let recentQuery = supabase
         .from("recently_viewed")
-        .select("*", { count: "exact", head: true });
+        .select("recipe_id, id");
 
       if (!isAdmin) {
         recentQuery = recentQuery.eq("user_id", user.id);
       }
 
-      const { count: recent, error: recentError } = await recentQuery;
+      const { data: recentData, error: recentError } = await recentQuery;
 
-      if (recentError) console.error("Recent count error:", recentError);
-      setRecentCount(recent || 0);
+      if (recentError) {
+        console.error("Recent count error:", recentError);
+        setRecentCount(0);
+      } else {
+        const uniqueRecipeIds = new Set(
+          (recentData || []).map((item) => item.recipe_id ?? item.id)
+        );
+
+        setRecentCount(uniqueRecipeIds.size);
+      }
 
       // Recent activity
       let activityQuery = supabase

@@ -12,6 +12,7 @@ import {
   FaSignOutAlt,
   FaBars,
   FaTimes,
+  FaGlobe,
 } from "react-icons/fa";
 
 function Sidebar() {
@@ -91,27 +92,18 @@ function Sidebar() {
         {collapsed ? <FaBars /> : <FaTimes />}
       </button>
 
+      
       <div className="sidebar-brand">
-        <div className="brand-icon">
-          <FaBook />
-        </div>
+        <img
+          src="/logo-icon.png"
+          alt="Digital Recipe Management System logo"
+          className="brand-logo"
+        />
+
         {!collapsed && (
           <div className="brand-text">
             <strong>Digital Recipe</strong>
             <span>Management System</span>
-          </div>
-        )}
-      </div>
-
-      <div className="sidebar-user">
-        <div className="sidebar-avatar">
-          {(fullName || "U").charAt(0).toUpperCase()}
-        </div>
-
-        {!collapsed && (
-          <div className="sidebar-user-info">
-            <strong title={fullName}>{fullName || "Loading user..."}</strong>
-            <span>{role === "admin" ? "Administrator" : "User"}</span>
           </div>
         )}
       </div>
@@ -126,12 +118,16 @@ function Sidebar() {
 
         <NavLink to="/recipes" className={linkClass} title="Recipes">
           <FaBook />
-          {!collapsed && <span>Recipes</span>}
+          {!collapsed && <span>My Recipes</span>}
         </NavLink>
 
-        <NavLink to="/add-recipe" className={linkClass} title="Add Recipe">
-          <FaPlusCircle />
-          {!collapsed && <span>Add Recipe</span>}
+        <NavLink
+          to="/global-recipes"
+          className={linkClass}
+          title="Global Recipes"
+        >
+          <FaGlobe />
+          {!collapsed && <span>Global Recipes</span>}
         </NavLink>
 
         <NavLink to="/queue" className={linkClass} title="Cooking Queue">

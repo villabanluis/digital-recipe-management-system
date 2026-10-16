@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Recipes from "./pages/Recipes";
+import GlobalRecipes from "./pages/GlobalRecipes";
 import AddRecipe from "./pages/AddRecipe";
 import EditRecipe from "./pages/EditRecipe";
 import Queue from "./pages/Queue";
@@ -21,9 +22,17 @@ function App() {
 
         {/* One dashboard for both roles */}
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/admin" element={<Navigate to="/dashboard" replace />} />
+        <Route
+          path="/admin"
+          element={<Navigate to="/dashboard" replace />}
+        />
 
+        {/* Existing private recipe page stays unchanged */}
         <Route path="/recipes" element={<Recipes />} />
+
+        {/* Community recipe page */}
+        <Route path="/global-recipes" element={<GlobalRecipes />} />
+
         <Route path="/edit-recipe/:id" element={<EditRecipe />} />
         <Route path="/add-recipe" element={<AddRecipe />} />
         <Route path="/queue" element={<Queue />} />

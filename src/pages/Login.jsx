@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../services/supabase";
@@ -5,64 +6,80 @@ import { supabase } from "../services/supabase";
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    if (loading) return;
+    setLoading(true);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      if (error) {
+        alert(error.message);
+        return;
+      }
 
-    const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
 
-    if (profileError) {
-      alert(profileError.message);
-      return;
-    }
+      if (userError || !user) {
+        alert(userError?.message || "Unable to retrieve your account.");
+        return;
+      }
 
-    if (profile.role === "admin") {
-      navigate("/admin");
-    } else {
-      navigate("/dashboard");
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (profileError) {
+        alert(profileError.message);
+        return;
+      }
+
+      if (profile?.role === "admin") {
+        navigate("/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
     <div className="auth-container">
       <div className="auth-card">
+        <img
+          src="/recipe-logo.png"
+          alt="Digital Recipe Management System logo"
+          className="login-logo"
+        />
 
-        <h1 className="auth-title">
-          Digital Recipe Management System
-        </h1>
-        
         <p className="auth-subtitle">
           Sign in to your account
         </p>
 
         <form onSubmit={handleLogin}>
-
           <input
             className="auth-input"
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            required
           />
 
           <input
@@ -71,22 +88,23 @@ function Login() {
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
           />
 
           <button
             className="auth-btn"
             type="submit"
+            disabled={loading}
           >
-            Login
+            {loading ? "Signing in..." : "Login"}
           </button>
-
         </form>
 
         <p className="auth-link">
           Don't have an account?{" "}
           <Link to="/register">Register</Link>
         </p>
-
       </div>
     </div>
   );
