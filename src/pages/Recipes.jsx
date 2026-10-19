@@ -36,16 +36,11 @@ function Recipes() {
 
       if (profileError) throw profileError;
 
-      let query = supabase
+      const { data, error } = await supabase
         .from("recipes")
         .select("*")
+        .eq("user_id", user.id)
         .order("id", { ascending: false });
-
-      if (profile?.role !== "admin") {
-        query = query.eq("user_id", user.id);
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
 
