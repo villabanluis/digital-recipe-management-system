@@ -88,10 +88,31 @@ function ViewRecipe() {
 
         <h1>{recipe.recipe_name}</h1>
 
-        <hr />
+      {recipe.description && (
+        <>
+          <p className="recipe-description">
+            {recipe.description}
+          </p>
 
-        <h3>Category</h3>
-        <p>{recipe.category}</p>
+          <br />
+        </>
+      )}
+
+      {recipe.cooking_time && (
+        <>
+          <h3>Estimated Cooking Time</h3>
+          <p>
+            {recipe.cooking_time} minutes
+          </p>
+
+          <br />
+        </>
+      )}
+
+      <hr />
+
+      <h3>Category</h3>
+      <p>{recipe.category || "Uncategorized"}</p>
 
         <br />
 
