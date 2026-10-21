@@ -128,8 +128,19 @@ function Recipes() {
   });
 
   return (
-    <Layout>
-          
+  <Layout>
+    <div className="global-recipes-heading">
+      <div>
+        <h1>My Recipes</h1>
+        <br />
+        <p>Manage your personal recipes.</p>
+      </div>
+
+      <Link to="/add-recipe" className="global-add-recipe">
+        + Add Recipe
+      </Link>
+    </div>
+
     <div className="user-table-container">
       <table className="user-table">
         <thead>
